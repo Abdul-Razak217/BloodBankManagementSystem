@@ -1,11 +1,9 @@
 name: Build and deploy ASP.Net Core app to Azure Web App - bloodbank-management-system
-
 on:
   push:
     branches:
       - main
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: windows-latest
@@ -19,16 +17,26 @@ jobs:
       - name: Set up .NET Core
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'  # Changed to a stable version
+          dotnet-version: '8.0.x'
+      
+      # Add this diagnostic step to find project files
+      - name: Explore repository structure
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path . -Force
+          Write-Host "---------- Solution Files ----------"
+          Get-ChildItem -Path . -Filter *.sln -Recurse | ForEach-Object { Write-Host $_.FullName }
+          Write-Host "---------- Project Files ----------"
+          Get-ChildItem -Path . -Filter *.csproj -Recurse | ForEach-Object { Write-Host $_.FullName }
       
       - name: Restore dependencies
-        run: dotnet restore
+        run: dotnet restore BloodBankManagementSystem.sln
         
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build BloodBankManagementSystem.sln --configuration Release --no-restore
         
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish BloodBankManagementSystem.sln -c Release -o "${{env.DOTNET_ROOT}}/myapp" --no-build
         
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
@@ -37,6 +45,7 @@ jobs:
           path: ${{env.DOTNET_ROOT}}/myapp
           
   deploy:
+    # The deployment section can remain unchanged
     runs-on: windows-latest
     needs: build
     environment:
@@ -44,8 +53,8 @@ jobs:
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
       
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
       
     steps:
       - name: Download artifact from build job
